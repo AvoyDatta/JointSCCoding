@@ -1,0 +1,235 @@
+# -*- coding: utf-8 -*-
+"""========================================================================
+This script processes the test results produced by the neural network algorithm
+and does some graphical processing on this.
+
+@author: Nariman Farsad, and Milind Rao
+@copyright: Copyright 2018
+========================================================================"""
+#==================Import nltk and download all before very first run (only once)==============================
+#import nltk
+#nltk.download("all")
+
+from editdistance import eval as edeval
+import edit_distance
+from preprocess_library import Word2Numb
+import itertools
+import bisect 
+import numpy as np
+from tqdm import tqdm
+import os
+from nltk.stem import WordNetLemmatizer
+from nltk import pos_tag
+from nltk.corpus import wordnet as wn
+from jointSC_modChan import parse_args
+
+
+def simple_tokenizer(sentence,word2numb,special_words=[]):
+    """ Simple tokenization based on space and removal of special characters"""
+    words = word2numb.convert_w2n(sentence.split(' '))
+    words = list(filter(lambda x: x not in special_words,words))
+    return words
+
+def remove_duplicates(words_nums):
+    """ removes contiguous duplicates"""
+    words_nums_no_rep,_ = zip(*itertools.groupby(words_nums))
+    return words_nums_no_rep
+
+def batch_performance(row,batch_size=32):
+    """ Groups contiguous groups of values of size batch_size"""
+    row_batches = zip(*([iter(row)]*batch_size))
+    return [np.mean(x) for x in row_batches]
+
+def penn_to_wn(tag):
+    """ converts tags from nltk to tags used by wordnet """
+    if tag.startswith('J'):
+        return wn.ADJ
+    elif tag.startswith('N'):
+        return wn.NOUN
+    elif tag.startswith('R'):
+        return wn.ADV
+    elif tag.startswith('V'):
+        return wn.VERB
+    return None
+
+
+def get_synset(tagged):
+    """ uses wordnet to get the synonyms for the input tagged word
+
+        Args:
+            tagged: a word that is tagged using nltk pos_tag
+
+        Returns:
+            syn: the synonyms set, i.e., synset for the word
+    """
+    lemmatzr = WordNetLemmatizer()
+    wn_tag = penn_to_wn(tagged[0][1]) #convert tag to synset wordnet tag
+    if not wn_tag: # if the tag not in synset wordnet tag, (e.g. for word our)
+        return None
+
+    # find the base of the word
+    lemma = lemmatzr.lemmatize(tagged[0][0], pos=wn_tag)
+
+    # find synset using synset wordnet tag
+    syn = wn.synsets(lemma, pos=wn_tag)
+    if not syn: # if not found
+        syn = wn.synsets(lemma) # try without the synset wordnet tag
+        if not syn:
+            return None
+
+    return syn[0] # return the first word in the synset
+
+
+def edit_dist_with_repl_similarity(tx_numb,rx_numb,word2numb):
+    """ This function aligns two seq according to edit distance and then
+     subtracts the similarity measure between replaced words from the edit distance.
+     Wu Parmer similarity measure is used for this task.
+
+    Args:
+        tx_numb: the number representation of the tx sentence
+        rx_numb: the number representation fo the rx sentence
+        word2numb: word to numb object
+
+    Returns:
+        dist_measur: returns the distance measure
+    """
+    # get the word representation
+    tx_txt = word2numb.convert_n2w(tx_numb)
+    rx_txt = word2numb.convert_n2w(rx_numb)
+
+    ed_aligned = edit_distance.SequenceMatcher(a=tx_numb, b=rx_numb)
+
+    dist_measur = ed_aligned.distance() # this is the edit distance
+
+    indx_tx = 0
+    indx_rx = 0
+    # go through insertions and deletions and replacements in the alignment
+    for i, op in enumerate(ed_aligned.get_opcodes()):
+        # print(op)
+        if op[0] == 'equal':
+            indx_tx += 1
+            indx_rx += 1
+            continue
+        elif op[0] == 'replace': # if replacement discount similarity
+            tx_syn = get_synset(pos_tag([tx_txt[indx_tx]]))
+            rx_syn = get_synset(pos_tag([rx_txt[indx_rx]]))
+            sim = 0
+            if (tx_syn is not None) and (rx_syn is not None):
+  # -*- coding: utf-8 -*-
+"""========================================================================
+This script processes the test results produced by the neural network algorithm
+and does some graphical processing on this.
+
+@author: Nariman Farsad, and Milind Rao
+@copyright: Copyright 2018
+========================================================================"""
+#==================Import nltk and download all before very first run (only once)==============================
+#import nltk
+#nltk.download("all")
+
+from editdistance import eval as edeval
+import edit_distance
+from preprocess_library import Word2Numb
+import itertools
+import bisect 
+import numpy as np
+from tqdm import tqdm
+import os
+from nltk.stem import WordNetLemmatizer
+from nltk import pos_tag
+from nltk.corpus import wordnet as wn
+from jointSC_modChan import parse_args
+
+
+def simple_tokenizer(sentence,word2numb,special_words=[]):
+    """ Simple tokenization based on space and removal of special characters"""
+    words = word2numb.convert_w2n(sentence.split(' '))
+    words = list(filter(lambda x: x not in special_words,words))
+    return words
+
+def remove_duplicates(words_nums):
+    """ removes contiguous duplicates"""
+    words_nums_no_rep,_ = zip(*itertools.groupby(words_nums))
+    return words_nums_no_rep
+
+def batch_performance(row,batch_size=32):
+    """ Groups contiguous groups of values of size batch_size"""
+    row_batches = zip(*([iter(row)]*batch_size))
+    return [np.mean(x) for x in row_batches]
+
+def penn_to_wn(tag):
+    """ converts tags from nltk to tags used by wordnet """
+    if tag.startswith('J'):
+        return wn.ADJ
+    elif tag.startswith('N'):
+        return wn.NOUN
+    elif tag.startswith('R'):
+        return wn.ADV
+    elif tag.startswith('V'):
+        return wn.VERB
+    return None
+
+
+def get_synset(tagged):
+    """ uses wordnet to get the synonyms for the input tagged word
+
+        Args:
+            tagged: a word that is tagged using nltk pos_tag
+
+        Returns:
+            syn: the synonyms set, i.e., synset for the word
+    """
+    lemmatzr = WordNetLemmatizer()
+    wn_tag = penn_to_wn(tagged[0][1]) #convert tag to synset wordnet tag
+    if not wn_tag: # if the tag not in synset wordnet tag, (e.g. for word our)
+        return None
+
+    # find the base of the word
+    lemma = lemmatzr.lemmatize(tagged[0][0], pos=wn_tag)
+
+    # find synset using synset wordnet tag
+    syn = wn.synsets(lemma, pos=wn_tag)
+    if not syn: # if not found
+        syn = wn.synsets(lemma) # try without the synset wordnet tag
+        if not syn:
+            return None
+
+    return syn[0] # return the first word in the synset
+
+
+def edit_dist_with_repl_similarity(tx_numb,rx_numb,word2numb):
+    """ This function aligns two seq according to edit distance and then
+     subtracts the similarity measure between replaced words from the edit distance.
+     Wu Parmer similarity measure is used for this task.
+
+    Args:
+        tx_numb: the number representation of the tx sentence
+        rx_numb: the number representation fo the rx sentence
+        word2numb: word to numb object
+
+    Returns:
+        dist_measur: returns the distance measure
+    """
+    # get the word representation
+    tx_txt = word2numb.convert_n2w(tx_numb)
+    rx_txt = word2numb.convert_n2w(rx_numb)
+
+    ed_aligned = edit_distance.SequenceMatcher(a=tx_numb, b=rx_numb)
+
+    dist_measur = ed_aligned.distance() # this is the edit distance
+
+    indx_tx = 0
+    indx_rx = 0
+    # go through insertions and deletions and replacements in the alignment
+    for i, op in enumerate(ed_aligned.get_opcodes()):
+        # print(op)
+        if op[0] == 'equal':
+            indx_tx += 1
+            indx_rx += 1
+            continue
+        elif op[0] == 'replace': # if replacement discount similarity
+            tx_syn = get_synset(pos_tag([tx_txt[indx_tx]]))
+            rx_syn = get_synset(pos_tag([rx_txt[indx_rx]]))
+            sim = 0
+            if (tx_syn is not None) and (rx_syn is not None):
+  

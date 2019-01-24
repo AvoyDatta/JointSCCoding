@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#Runs the jointSC_modChan.py python file with requisite command line args
+
+#Training src network
+#python3 jointSC_modChan.py -t train_src -c erasure -cp 1.00 -lm src_only -e 1 -lr 0.000005 -ntx 356 #Simulates code_rate of 0.80 for transmitted bits == 445 
+
+#Training src coder with same num of trans bits as full model
+#python3 jointSC_modChan.py -t train_src -c erasure -cp 0.90 -cp_max 1.00 -cp_min 0.80 -lm None -e 10 -lr 0.0001 -ntx 445
+
+#Test src net using normal test
+#python3 jointSC_modChan.py -t test_src -ntx 356 -c erasure -cp 1.00 -mt 10000 -lm src_only
+
+#Testing + Evaluating src net for a number of chan_params
+for ch_param in 0.80 0.84 0.88 0.92 0.96 1.00
+do
+    python3 jointSC_modChan.py -t test_src -c erasure -cp $ch_param -mt 10000 -lm src_only -ntx 445
+    python3 performance_tests.py -t test_src -c erasure -cp $ch_param -edt ed_only -mt 10000 -lm src_only -ntx 445
+done
+
+#Evaluate source coder
+#python3 performance_tests.py -t test_src -c erasure -cp 1.00 -edt ed_WuP -ntx 356 -lm src_only
+
+
+#Training combined network after loading from pre-trained wts
+#python3 jointSC_modChan.py -t tfast -c erasure -cp 0.85 -cp_max 0.90 -cp_min 0.80 -e 3 -lm full -lr 0.0001 -se 5000 -ntx 400
+
+
+#python3 jointSC_modChan.py -t test -c erasure -cp 0.90 -mt 10000 -lm full
+#python3 jointSC_modChan.py -t beam -c erasure -cp 0.90 -mt 10000 -lm full
+#python3 jointSC_modChan.py -t beam -c erasure -cp 0.90 -mt 10000 -lm full
+
+#Testing combined model for different channel params
+#for ch_param in 0.80 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89
+#do
+#    python3 jointSC_modChan.py -t test -c erasure -cp $ch_param -mt 10000 -lm full -ntx 400 
+#done 
+
+
+
+#Evalauating performance
+#python3 performance_tests.py -c erasure -cp 0.90 -edt ed_WuP #ed_only
+#for ch_param in 0.96 0.97 0.98 0.99 1.00
+#do
+#    python3 performance_tests.py -t test -ntx 400 -c erasure -cp $ch_param -edt ed_WuP -lm full
+#done
+
